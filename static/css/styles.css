@@ -1,0 +1,10 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+.container {
+    max-width: 800px;
+}
+.alert-danger {
+    border-left: 5px solid #dc3545;
+}
