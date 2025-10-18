@@ -7,7 +7,8 @@ import os
 load_dotenv()
 app = Flask(__name__)
 youtube_service = YouTubeService()
-rag_service = RAGService(api_key=os.getenv("GOOGLE_API_KEY"))
+# Don't pass Google API key to avoid quota issues - let RAG service handle fallback
+rag_service = RAGService(api_key=None)
 
 @app.route("/", methods=["GET"])
 def index():
@@ -18,9 +19,21 @@ def submit_video():
     youtube_url = request.form["youtube_url"]
     try:
         video_id = youtube_service.extract_video_id(youtube_url)
-        transcript = youtube_service.fetch_transcript(video_id)
+        transcript, source_type = youtube_service.fetch_transcript(video_id)
         rag_service.process_transcript(transcript, video_id)
-        return jsonify({"status": "success", "message": "Video transcript stored successfully"})
+        
+        # Provide informative message based on source
+        if source_type == "youtube_transcript":
+            message = "Video transcript stored successfully (from YouTube captions)"
+        else:
+            message = "Video transcript stored successfully (from AI audio transcription)"
+        
+        return jsonify({
+            "status": "success", 
+            "message": message,
+            "source": source_type,
+            "llm_provider": getattr(rag_service, 'llm_provider', 'unknown')
+        })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
