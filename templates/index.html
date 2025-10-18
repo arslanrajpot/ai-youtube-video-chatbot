@@ -15,7 +15,7 @@
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center mb-4">YouTube Video Talk</h1>
+        <h1 class="text-center mb-4">Video Talk</h1>
         <div class="row">
             <div class="col-md-6 form-container">
                 <h3>Submit Video</h3>
@@ -27,6 +27,12 @@
                     <button type="submit" class="btn btn-primary" id="submit-video-btn">Submit Video</button>
                     <div class="spinner-border text-primary mt-3 d-none" id="video-loading-spinner" role="status">
                         <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div id="video-loading-message" class="mt-3 d-none">
+                        <div class="alert alert-info">
+                            <strong>Processing video...</strong><br>
+                            <small>This may take 30-60 seconds for audio transcription</small>
+                        </div>
                     </div>
                     <div id="video-status" class="mt-3"></div>
                 </form>
@@ -60,9 +66,11 @@
             e.preventDefault();
             const submitBtn = document.getElementById('submit-video-btn');
             const spinner = document.getElementById('video-loading-spinner');
+            const loadingMessage = document.getElementById('video-loading-message');
             const statusDiv = document.getElementById('video-status');
             submitBtn.disabled = true;
             spinner.classList.remove('d-none');
+            loadingMessage.classList.remove('d-none');
             statusDiv.innerHTML = '';
 
             const formData = new FormData(this);
@@ -73,7 +81,9 @@
                 });
                 const result = await response.json();
                 if (result.status === 'success') {
-                    statusDiv.innerHTML = '<div class="alert alert-success">Video transcript stored successfully!</div>';
+                    const llmInfo = result.llm_provider ? 
+                        `<br><small class="text-info">🤖 Using ${result.llm_provider.toUpperCase()} AI</small>` : '';
+                    statusDiv.innerHTML = `<div class="alert alert-success">${result.message}${llmInfo}</div>`;
                     currentVideoId = document.getElementById('youtube_url').value.split('v=')[1]?.split('&')[0] || '';
                     document.getElementById('video_id').value = currentVideoId;
                 } else {
@@ -84,6 +94,7 @@
             } finally {
                 submitBtn.disabled = false;
                 spinner.classList.add('d-none');
+                loadingMessage.classList.add('d-none');
             }
         });
 
