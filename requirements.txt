@@ -11,3 +11,4 @@ faiss-cpu==1.7.4
 sentence-transformers==2.2.2
 torch==2.1.0
 numpy<2.0
+setuptools<81
