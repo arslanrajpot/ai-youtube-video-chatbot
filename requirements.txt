@@ -3,12 +3,11 @@ python-dotenv==1.0.0
 youtube-transcript-api==0.6.1
 openai-whisper==20231117
 yt-dlp==2023.10.13
-langchain==0.0.350
-langchain-community==0.0.1
-langchain-google-genai==0.0.5
-langchain-groq==0.0.1
+langchain
+langchain-community
+langchain-google-genai
+langchain-groq
 faiss-cpu==1.7.4
 sentence-transformers==2.2.2
 torch==2.1.0
 numpy<2.0
-setuptools<81
