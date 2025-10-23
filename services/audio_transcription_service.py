@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class AudioTranscriptionService:
-    def __init__(self, model_size: str = "base"):
+    def __init__(self, model_size: str = "tiny"):
         """
         Initialize the audio transcription service with Whisper.
         

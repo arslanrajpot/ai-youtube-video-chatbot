@@ -14,6 +14,10 @@ rag_service = RAGService(api_key=None)
 def index():
     return render_template("index.html")
 
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "healthy", "service": "YouTube Talker"})
+
 @app.route("/submit_video", methods=["POST"])
 def submit_video():
     youtube_url = request.form["youtube_url"]
@@ -51,4 +55,5 @@ def ask_question():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
