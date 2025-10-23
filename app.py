@@ -55,5 +55,5 @@ def ask_question():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == "__main__":
-    # For PythonAnywhere, use default settings
-    app.run(debug=False)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False)
