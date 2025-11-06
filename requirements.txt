@@ -2,7 +2,7 @@ Flask==2.3.3
 python-dotenv==1.0.0
 youtube-transcript-api==0.6.1
 openai-whisper==20231117
-yt-dlp==2023.10.13
+yt-dlp>=2025.1.0
 langchain
 langchain-community
 langchain-google-genai
