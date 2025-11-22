@@ -16,19 +16,25 @@ logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self, embeddings_model="models/embedding-001", llm_model="gemini-1.5-flash", api_key=None):
-        # Initialize embeddings with fallback
-        self.embeddings = self._initialize_embeddings(embeddings_model, api_key)
+        # Defer heavyweight network/model initialization until first use.
+        self.embeddings = None
+        self.embeddings_model = embeddings_model
         
         # Initialize LLM with fallback support
         self.google_api_key = api_key
         self.groq_api_key = os.getenv('GROQ_API_KEY')
         self.llm = None
         self.llm_provider = None
+        self.llm_model = llm_model
         
-        # Try to initialize Gemini first, then fallback to Groq
-        self._initialize_llm()
+        # Try to initialize LLM, but don't crash app startup if keys/services are unavailable.
+        try:
+            self._initialize_llm()
+        except Exception as e:
+            logger.warning(f"⚠️ LLM not initialized at startup: {e}")
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        self.retriever_cache = {}  # Initialize the retriever cache
+        self.retriever_cache = {}  # Built vector retrievers by video_id
+        self.transcript_cache = {}  # Raw transcript text by video_id (lazy indexing)
         self.user_info = {}  # Store user-provided information
         
         # Define general questions and responses
@@ -81,6 +87,11 @@ class RAGService:
         except Exception as e:
             logger.error(f"❌ HuggingFace embeddings also failed: {e}")
             raise Exception("Failed to initialize any embeddings. Please check your setup.")
+
+    def _ensure_embeddings_initialized(self):
+        """Initialize embeddings only when they are needed."""
+        if self.embeddings is None:
+            self.embeddings = self._initialize_embeddings(self.embeddings_model, self.google_api_key)
     
     def _initialize_llm(self):
         """Initialize LLM with fallback from Gemini to Groq"""
@@ -154,6 +165,9 @@ class RAGService:
     
     def _answer_with_current_llm(self, question, retriever):
         """Answer question using the currently initialized LLM"""
+        if self.llm is None:
+            self._initialize_llm()
+
         def format_docs(retrieved_docs):
             return "\n\n".join(doc.page_content for doc in retrieved_docs)
 
@@ -166,14 +180,26 @@ class RAGService:
         return chain.invoke(question)
 
     def process_transcript(self, transcript_text, video_id):
+        # Keep submit fast: store transcript now, build embeddings lazily on first question.
+        self.transcript_cache[video_id] = transcript_text
+        # Invalidate old retriever if transcript is resubmitted.
+        if video_id in self.retriever_cache:
+            del self.retriever_cache[video_id]
+        return None
+
+    def get_retriever(self, video_id):
+        retriever = self.retriever_cache.get(video_id)
+        if retriever:
+            return retriever
+        transcript_text = self.transcript_cache.get(video_id)
+        if not transcript_text:
+            return None
+        self._ensure_embeddings_initialized()
         texts = self.text_splitter.create_documents([transcript_text])
         vector_store = FAISS.from_documents(texts, self.embeddings)
         retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 4})
         self.retriever_cache[video_id] = retriever
         return retriever
-
-    def get_retriever(self, video_id):
-        return self.retriever_cache.get(video_id)
 
     def answer_question(self, retriever, question):
         # Store user information if provided
