@@ -15,6 +15,7 @@
 </head>
 <body>
     <div class="container mt-5">
+        <p class="text-center text-muted small mb-2">Server build: {{ api_build }} — open this page only from this Flask app (not Live Server / file://).</p>
         <h1 class="text-center mb-4">Video Talk</h1>
         <div class="row">
             <div class="col-md-6 form-container">
@@ -59,6 +60,16 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Must match the Flask server that rendered this page (avoids calling another port / old server).
+        const API_BASE = {{ request.url_root | tojson }};
+
+        const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        function formatErrorDebugPanel(result) {
+            if (!result || !result.debug) return '';
+            return `<details class="mt-2 small text-start"><summary class="text-danger">Debug details</summary><pre class="p-2 mt-1 bg-light border rounded" style="font-size:11px;max-height:360px;overflow:auto;white-space:pre-wrap;">${esc(JSON.stringify(result.debug, null, 2))}</pre><p class="text-muted mt-1 mb-0">Full response: DevTools &rarr; Network &rarr; <code>submit_video</code> &rarr; Response.</p></details>`;
+        }
+
         let currentVideoId = '';
 
         // Handle video submission
@@ -75,7 +86,7 @@
 
             const formData = new FormData(this);
             try {
-                const response = await fetch('/submit_video', {
+                const response = await fetch(new URL('submit_video', API_BASE), {
                     method: 'POST',
                     body: formData
                 });
@@ -87,10 +98,13 @@
                     currentVideoId = document.getElementById('youtube_url').value.split('v=')[1]?.split('&')[0] || '';
                     document.getElementById('video_id').value = currentVideoId;
                 } else {
-                    statusDiv.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+                    const b = result.app_build ? ` (build: ${result.app_build})` : ' (no app_build — you are not hitting the updated Flask app)';
+                    console.error('submit_video error', result);
+                    statusDiv.innerHTML = `<div class="alert alert-danger">${esc(result.message || '')}${b}${formatErrorDebugPanel(result)}</div>`;
                 }
             } catch (error) {
-                statusDiv.innerHTML = '<div class="alert alert-danger">Error submitting video.</div>';
+                console.error('submit_video request failed', error);
+                statusDiv.innerHTML = '<div class="alert alert-danger">Error submitting video (see browser console).</div>';
             } finally {
                 submitBtn.disabled = false;
                 spinner.classList.add('d-none');
@@ -113,7 +127,7 @@
 
             const formData = new FormData(this);
             try {
-                const response = await fetch('/ask_question', {
+                const response = await fetch(new URL('ask_question', API_BASE), {
                     method: 'POST',
                     body: formData
                 });
@@ -121,11 +135,13 @@
                 if (result.status === 'success') {
                     await typeWriterEffect(result.answer);
                 } else {
-                    chatContainer.innerHTML += `<div class="chat-message bot-message">Bot: ${result.message}</div>`;
+                    console.error('ask_question error', result);
+                    chatContainer.innerHTML += `<div class="chat-message bot-message">Bot: ${esc(result.message || '')}${formatErrorDebugPanel(result)}</div>`;
                     chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
             } catch (error) {
-                chatContainer.innerHTML += '<div class="chat-message bot-message">Bot: Error processing question.</div>';
+                console.error('ask_question request failed', error);
+                chatContainer.innerHTML += '<div class="chat-message bot-message">Bot: Error processing question (see console).</div>';
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             } finally {
                 submitBtn.disabled = false;
